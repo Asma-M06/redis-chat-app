@@ -97,6 +97,12 @@
     </div>
 
     <script>
+        const CHAT_SECRET = "my-super-safe-key-123";
+        function crypt(text, key) {
+            return text.split('').map((char, i) =>
+                String.fromCharCode(char.charCodeAt(0) ^ key.charCodeAt(i % key.length))
+            ).join('');
+        }
         const socket = io();
         let myName = "";
 
@@ -112,6 +118,7 @@
         function sendMessage() {
             const input = document.getElementById('message-input');
             if (input.value.trim()) {
+                const encrypted = crypt(input.value, CHAT_SECRET);
                 socket.emit('send_message', { message: input.value });
                 input.value = '';
             }
@@ -174,6 +181,7 @@
         });
 
         function appendMessage(data) {
+            const decryptedMessage = crypt(data.message, CHAT_SECRET);
             const container = document.getElementById('messages');
             const isMe = data.senderId === myName;
             const msgId = `msg-${data.timeStamp.replace(/:/g, '-')}-${data.senderId}`;
