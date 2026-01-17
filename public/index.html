@@ -10,8 +10,8 @@
 <body class="bg-slate-900 text-white flex items-center justify-center h-screen font-sans">
 
     <div id="login-screen" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50">
-        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 w-80">
-            <h2 class="text-xl font-bold mb-4 text-center">Identity</h2>
+        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl border border-slate-800 w-80 text-center">
+            <h2 class="text-xl font-bold mb-4">Enter Your Name</h2>
             <input id="username-input"
                 class="w-full bg-slate-800 p-3 rounded-lg mb-4 outline-none border border-slate-700 focus:border-blue-500"
                 placeholder="Username...">
@@ -25,15 +25,17 @@
         <div class="bg-slate-900 p-4 border-b border-slate-700">
             <h1 class="font-bold text-lg flex items-center gap-2">
                 <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                Global Chat
+                Redis Global Chat
             </h1>
+            <span id="user-count" class="text-xs bg-slate-800 px-2 py-1 rounded-full text-slate-400">0 Online</span>
         </div>
-
-        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/50">
-        </div>
+        <div id="typing-indicator" class="text-[10px] text-slate-500 italic px-4 h-4"></div>
+        <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/50"></div>
 
         <div class="p-4 bg-slate-900 border-t border-slate-700 flex gap-2">
-            <input id="message-input" class="flex-1 bg-slate-800 p-2 rounded-lg outline-none" placeholder="Message...">
+            <input id="message-input"
+                class="flex-1 bg-slate-800 p-2 rounded-lg outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Type a message...">
             <button onclick="sendMessage()"
                 class="bg-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-500">Send</button>
         </div>
@@ -51,7 +53,26 @@
                 document.getElementById('login-screen').classList.add('hidden');
             }
         }
+        let typingTimeout;
 
+
+        document.getElementById('message-input').addEventListener('input', () => {
+            socket.emit('typing', true);
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', false);
+            }, 2000);
+        });
+
+        socket.on('display_typing', (data) => {
+            const indicator = document.getElementById('typing-indicator');
+            if (data.isTyping && data.username !== myName) {
+                indicator.innerText = `${data.username} is typing...`;
+            } else {
+                indicator.innerText = '';
+            }
+        });
         function sendMessage() {
             const input = document.getElementById('message-input');
             if (input.value.trim()) {
@@ -62,10 +83,8 @@
 
         socket.on('chat_history', (history) => {
             const container = document.getElementById('messages');
-            container.innerHTML = ''; // Clear any old messages or loading text
-            history.forEach(data => {
-                appendMessage(data);
-            });
+            container.innerHTML = '';
+            history.forEach(appendMessage);
         });
 
         socket.on('receive_message', appendMessage);
@@ -88,9 +107,13 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // Allow 'Enter' key to send
         document.getElementById('message-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
+        });
+
+        socket.on('user_list', (users) => {
+            document.getElementById('user-count').innerText = `${users.length} Online`;
+            console.log("Current users:", users);
         });
     </script>
 </body>
